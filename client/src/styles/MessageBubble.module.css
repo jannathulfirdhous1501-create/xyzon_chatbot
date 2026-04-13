@@ -1,28 +1,89 @@
+/* ── MessageBubble.module.css ── Xyzon Navy + Orange ── */
+
 .wrap {
-  display: flex; align-items: flex-start; gap: 10px;
-  animation: fadeUp .3s ease;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  animation: bubbleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .wrap.user { flex-direction: row-reverse; }
-.avatar { font-size: 26px; flex-shrink: 0; margin-top: 4px; }
+
+/* Avatars */
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+}
+
+.wrap.bot .avatar {
+  background: linear-gradient(135deg, rgba(26,52,104,0.8), rgba(21,42,85,0.8));
+  border-color: rgba(242,101,34,0.3);
+  font-size: 16px;
+}
+
+.wrap.user .avatar {
+  background: linear-gradient(135deg, rgba(242,101,34,0.25), rgba(255,122,53,0.15));
+  border-color: rgba(242,101,34,0.35);
+  font-size: 16px;
+}
+
+/* Bubbles */
 .bubble {
-  max-width: 72%; padding: 12px 16px;
-  border-radius: 18px; font-size: 15px; line-height: 1.6;
+  max-width: 72%;
+  padding: 11px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.65;
+  position: relative;
   word-break: break-word;
 }
-.bot .bubble {
-  background: rgba(255,255,255,0.1);
-  color: #e8f4ff;
+
+.wrap.bot .bubble {
+  background: rgba(21, 42, 85, 0.55);
+  border: 1px solid rgba(255,255,255,0.07);
   border-bottom-left-radius: 4px;
-  border: 1px solid rgba(15,163,177,0.3);
+  color: var(--text-primary);
 }
-.user .bubble {
-  background: linear-gradient(135deg, #0FA3B1, #1A3C5E);
-  color: #fff;
+
+.wrap.user .bubble {
+  background: linear-gradient(135deg, rgba(242,101,34,0.2), rgba(255,122,53,0.12));
+  border: 1px solid rgba(242,101,34,0.3);
   border-bottom-right-radius: 4px;
-}
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  color: var(--text-primary);
+  text-align: left;
 }
 
+/* Timestamp */
+.time {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 5px;
+  font-weight: 400;
+}
 
+/* Off-topic warning style */
+.offTopic {
+  background: linear-gradient(135deg, rgba(234,179,8,0.08), rgba(239,68,68,0.05));
+  border: 1px solid rgba(234,179,8,0.22);
+  color: #fbbf24;
+  font-size: 13px;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+@media (max-width: 600px) {
+  .bubble { max-width: 84%; font-size: 13px; }
+}

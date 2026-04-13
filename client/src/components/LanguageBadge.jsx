@@ -1,24 +1,28 @@
-const LANG_LABELS = {
-  'hi-IN': '🇮🇳 Hindi', 'ta-IN': '🇮🇳 Tamil', 'te-IN': '🇮🇳 Telugu',
-  'mr-IN': '🇮🇳 Marathi', 'bn-IN': '🇮🇳 Bengali', 'kn-IN': '🇮🇳 Kannada',
-  'ml-IN': '🇮🇳 Malayalam', 'gu-IN': '🇮🇳 Gujarati', 'pa-IN': '🇮🇳 Punjabi',
-  'en-IN': '🇬🇧 English', 'en-US': '🇺🇸 English'
+const LANG_NAMES = {
+  'en-IN': '🇬🇧 English',
+  'hi-IN': '🇮🇳 Hindi',
+  'ta-IN': '🇮🇳 Tamil',
+  'te-IN': '🇮🇳 Telugu',
+  'ml-IN': '🇮🇳 Malayalam',
+  'kn-IN': '🇮🇳 Kannada',
+  'mr-IN': '🇮🇳 Marathi',
+  'bn-IN': '🇮🇳 Bengali',
+  'gu-IN': '🇮🇳 Gujarati',
+  'pa-IN': '🇮🇳 Punjabi',
+  'or-IN': '🇮🇳 Odia',
+  'ur-IN': '🇮🇳 Urdu',
+  'fr-FR': '🇫🇷 French',
+  'de-DE': '🇩🇪 German',
+  'ar':    '🇸🇦 Arabic',
+  'zh':    '🇨🇳 Chinese',
 };
 
 export default function LanguageBadge({ langCode }) {
-  // Use the comprehensive LANG_LABELS map
-  // If the langCode is missing or not in the map, it shows "Detected"
-  const label = LANG_LABELS[langCode] || '✨ Detected';
-
+  if (!langCode) return null;
+  const label = LANG_NAMES[langCode] || langCode;
   return (
-    <span className="badge" style={{ 
-      fontSize: '0.75rem', 
-      padding: '2px 8px', 
-      borderRadius: '10px', 
-      background: 'rgba(255,255,255,0.1)',
-      marginLeft: '10px'
-    }}>
+    <div className="lang-badge">
       {label}
-    </span>
+    </div>
   );
 }
