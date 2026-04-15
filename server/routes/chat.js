@@ -46,18 +46,15 @@ router.post('/', async (req, res) => {
       aiReply = "I specialize in Xyzon Innovations' tech-education programs. Let me know if you need details about our courses, internships, or placements!";
     }
 
-    // 6. Detect BOT reply language using script detection (not Sarvam API)
-    //    This fixes the badge always showing English
-    const botScript = detectScript(aiReply);
-    const botLangCode = scriptToLangCode(botScript, aiReply);
-    console.log(`🤖 Bot lang: script=${botScript} → ${botLangCode}`);
+    // 6. ✅ FIXED: Use userLangCode for badge — bot reply has no trigger words
+    console.log(`🤖 Bot lang: using user lang → ${userLangCode}`);
 
-    // 7. TTS — use bot's actual language, fully isolated
+    // 7. TTS — ✅ FIXED: use userLangCode so TTS speaks in correct language
     let audioBase64 = null;
     if (includeAudio && aiReply) {
       try {
-        console.log(`🔊 TTS: lang=${botLangCode}, text length=${aiReply.length}`);
-        audioBase64 = await textToSpeech(aiReply, botLangCode);
+        console.log(`🔊 TTS: lang=${userLangCode}, text length=${aiReply.length}`);
+        audioBase64 = await textToSpeech(aiReply, userLangCode);
         if (audioBase64) {
           console.log('✅ TTS audio generated successfully');
         } else {
@@ -76,15 +73,15 @@ router.post('/', async (req, res) => {
 
     // 8. Save to MongoDB
     conv.messages.push(
-      { role: 'user',  text: cleanMessage, detectedLang: userLangCode },
-      { role: 'bot',   text: aiReply,      detectedLang: botLangCode  }
+      { role: 'user', text: cleanMessage, detectedLang: userLangCode },
+      { role: 'bot',  text: aiReply,      detectedLang: userLangCode }
     );
     await conv.save();
 
-    // 9. Send response
+    // 9. ✅ FIXED: Send userLangCode so frontend badge shows correct language
     return res.json({
       text: aiReply,
-      detectedLang: botLangCode,
+      detectedLang: userLangCode,
       audio: audioBase64
     });
 

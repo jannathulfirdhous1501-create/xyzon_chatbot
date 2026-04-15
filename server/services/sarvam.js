@@ -66,6 +66,55 @@ const detectScript = (text) => {
   return 'unknown';
 };
 
+// ─────────────────────────────────────────────────────────
+// Shared Roman language regexes — single source of truth
+// NOTE: Order matters — more specific languages first, Hindi last
+// ─────────────────────────────────────────────────────────
+const ROMAN_PATTERNS = [
+  {
+    lang: 'te-IN',
+    label: 'Tenglish',
+    desc: 'Telugu in Roman letters',
+    re: /\b(untaya|lekapothe|undo|atho|mathrame|cheppandi|chala|bagundi|emi|ekkada|katti|mela|enadru|ideya|ayyindi|chesaru|ledu|avunu|unnaru|cheyyadam|adugutunnaru|telugu|meeru|maku|mee|nenu)\b/i
+  },
+  {
+    lang: 'kn-IN',
+    label: 'Kanglish',
+    desc: 'Kannada in Roman letters',
+    re: /\b(bekagide|thumba|swalpa|avru|navu|nimma|naanu|hogbeku|bandru|kelsa|barteeni|madtini|kannada|illi|enu|yenu|yelli|illa|ide|madu)\b/i
+  },
+  {
+    lang: 'ml-IN',
+    label: 'Manglish',
+    desc: 'Malayalam in Roman letters',
+    re: /\b(aano|alle|ente|njan|ningal|ivide|evide|enthanu|mathrame|adipoli|sheriyanu|undoo|ingane|engane|avr|avar|onnum|ellam|kittum|kittathe|thanne)\b/i
+  },
+  {
+    lang: 'bn-IN',
+    label: 'Banglish',
+    desc: 'Bengali in Roman letters',
+    re: /\b(jana|khub|dorkar|ache|hobe|korte|gele|ami|tumi|apni|lagbe|jacche|ashbe|thakbe|pabo|korbo|dekhun|bolun|kemon|kothay)\b/i
+  },
+  {
+    lang: 'mr-IN',
+    label: 'Marathish',
+    desc: 'Marathi in Roman letters',
+    re: /\b(ahe|pahije|hota|sakal|mazha|tumcha|aplya|aahe|yeil|jaail|milel|ghya|dya|sangto|bagha|asa|tasa|aplya|konti|vela)\b/i
+  },
+  {
+    lang: 'ta-IN',
+    label: 'Tanglish',
+    desc: 'Tamil in Roman letters',
+    re: /\b(enna|epdi|evlo|yaar|naan|sollu|illai|theriyum|iruku|romba|konjam|seri|nee|avan|aval|inge|paaru|pannuva|solla|kekkum|vendam|venum)\b/i
+  },
+  {
+    lang: 'hi-IN',
+    label: 'Hinglish',
+    desc: 'Hindi in Roman letters',
+    re: /\b(kahan|kya|hai|mein|aap|hum|yeh|woh|bhi|aur|nahi|haan|batao|bolo|chahiye|milega|kitna|kyun|kaisa|kab|dekho|suno|karo)\b/i
+  }
+];
+
 // Maps script name → Sarvam language code for TTS & badge
 const scriptToLangCode = (script, text) => {
   switch (script) {
@@ -79,10 +128,16 @@ const scriptToLangCode = (script, text) => {
     case 'gurmukhi':   return 'pa-IN';
     case 'odia':       return 'or-IN';
     case 'roman': {
-      const hindiRoman = /\b(kahan|kya|hai|mein|ka|ki|ke|aap|hum|yeh|woh|bhi|aur|nahi|haan|batao|bolo)\b/i;
-      const tamilRoman = /\b(enna|epdi|evlo|yaar|naan|nee|avan|aval|inge|sollu|paaru|illai|theriyum)\b/i;
-      if (hindiRoman.test(text)) return 'hi-IN';
-      if (tamilRoman.test(text)) return 'ta-IN';
+      console.log('🔍 scriptToLangCode roman input:', JSON.stringify(text));
+      for (const pattern of ROMAN_PATTERNS) {
+        const matched = pattern.re.test(text);
+        console.log(`🔍 Testing ${pattern.label}: ${matched}`);
+        if (matched) {
+          console.log(`✅ Matched ${pattern.label} → ${pattern.lang}`);
+          return pattern.lang;
+        }
+      }
+      console.log('⚠️ No roman pattern matched → en-IN');
       return 'en-IN';
     }
     default: return 'en-IN';
@@ -104,10 +159,16 @@ const getScriptRule = (script, text) => {
     case 'bengali':
       return `CRITICAL: User wrote in Bengali script. Reply ENTIRELY in Bengali script. No English or Roman letters.`;
     case 'roman': {
-      const hindiRoman = /\b(kahan|kya|hai|mein|ka|ki|ke|aap|hum|yeh|woh|bhi|aur|nahi|haan|batao|bolo)\b/i;
-      const tamilRoman = /\b(enna|epdi|evlo|yaar|naan|nee|avan|aval|inge|sollu|paaru|illai|theriyum)\b/i;
-      if (hindiRoman.test(text)) return `User is writing Hinglish (Hindi in Roman letters). Reply in Hinglish Roman letters. Mix Hindi and English words using only Roman script.`;
-      if (tamilRoman.test(text)) return `User is writing Tanglish (Tamil in Roman letters). Reply in Tanglish Roman letters. Mix Tamil and English words using only Roman script.`;
+      console.log('🔍 getScriptRule roman input:', JSON.stringify(text));
+      for (const pattern of ROMAN_PATTERNS) {
+        const matched = pattern.re.test(text);
+        console.log(`🔍 Testing ${pattern.label}: ${matched}`);
+        if (matched) {
+          console.log(`✅ Matched ${pattern.label} → replying in ${pattern.desc}`);
+          return `User is writing ${pattern.label} (${pattern.desc}). Reply in ${pattern.label} — mix ${pattern.desc.split(' in ')[0]} and English words using only Roman script. Do NOT use native script. Do NOT use other Indian language words.`;
+        }
+      }
+      console.log('⚠️ No roman pattern matched → plain English');
       return `User is writing in English. Reply in clear, simple English.`;
     }
     default:
@@ -121,30 +182,27 @@ const getScriptRule = (script, text) => {
 const smartTruncate = (text, maxChars = 800) => {
   if (text.length <= maxChars) return text;
 
-  // Try to cut at last sentence-ending punctuation before maxChars
   const chunk = text.substring(0, maxChars);
   const lastPunct = Math.max(
-    chunk.lastIndexOf('।'), // Devanagari danda
+    chunk.lastIndexOf('।'),
     chunk.lastIndexOf('.'),
     chunk.lastIndexOf('?'),
     chunk.lastIndexOf('!'),
-    chunk.lastIndexOf('。') // Chinese/Japanese
+    chunk.lastIndexOf('。')
   );
 
   if (lastPunct > maxChars * 0.5) {
     return chunk.substring(0, lastPunct + 1).trim();
   }
 
-  // Fallback: cut at last space
   const lastSpace = chunk.lastIndexOf(' ');
   return lastSpace > 0 ? chunk.substring(0, lastSpace).trim() : chunk.trim();
 };
 
 // ─────────────────────────────────────────────────────────
-// 1. Detect Language (used for badge — now uses script detection)
+// 1. Detect Language (used for badge)
 // ─────────────────────────────────────────────────────────
 const detectLanguage = async (text) => {
-  // Use Unicode script detection — more reliable than Sarvam API for badges
   const script = detectScript(text);
   const langCode = scriptToLangCode(script, text);
   console.log(`🏷️  Badge lang: script=${script} → ${langCode}`);
@@ -156,13 +214,12 @@ const detectLanguage = async (text) => {
 // ─────────────────────────────────────────────────────────
 const generateReply = async (userText, history = []) => {
   try {
-    // Strip [SYSTEM:...] prefix injected by client
     const cleanUserText = userText.replace(/^\[SYSTEM:[\s\S]*?\]\s*/i, '').trim();
 
     const script = detectScript(cleanUserText);
     const scriptRule = getScriptRule(script, cleanUserText);
 
-    console.log(`🌐 Script detected: ${script} | Rule: ${scriptRule.substring(0, 60)}...`);
+    console.log(`🌐 Script detected: ${script} | Rule: ${scriptRule.substring(0, 80)}...`);
 
     const systemMessage = {
       role: 'system',
@@ -221,17 +278,13 @@ const speechToText = async (audioBuffer) => {
 };
 
 // ─────────────────────────────────────────────────────────
-// 4. Text to Speech — smart truncation so full reply is read
+// 4. Text to Speech
 // ─────────────────────────────────────────────────────────
 const textToSpeech = async (text, langCode = 'hi-IN') => {
   try {
     if (!text || text.trim().length === 0) return null;
 
-    // Always use the detected language — don't force hi-IN for English
-    // Sarvam handles English well with en-IN speaker
     const ttsLang = langCode || 'hi-IN';
-
-    // Smart truncate at sentence boundary instead of hard 500 char cut
     const ttsText = smartTruncate(text, 800);
     console.log(`🔊 TTS: lang=${ttsLang}, original=${text.length} chars, sending=${ttsText.length} chars`);
 
