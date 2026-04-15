@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Conversation = require('../models/Conversation');
 const {
-  detectLanguage,
   generateReply,
-  textToSpeech
+  textToSpeech,
+  detectScript,
+  scriptToLangCode
 } = require('../services/sarvam');
 
 router.post('/', async (req, res) => {
@@ -21,51 +22,51 @@ router.post('/', async (req, res) => {
       conv = new Conversation({ sessionId, messages: [] });
     }
 
-    // 2. Build history for LLM context (last 6 messages)
+    // 2. Build history for LLM (last 6 messages)
     const historyForLLM = conv.messages.slice(-6).map(m => ({
       role: m.role === 'bot' || m.role === 'assistant' ? 'assistant' : 'user',
       content: m.text
     }));
 
-    // 3. Generate AI reply
+    // 3. Detect user's language from INPUT using script detection (reliable)
+    const cleanMessage = message.replace(/^\[SYSTEM:[\s\S]*?\]\s*/i, '').trim();
+    const userScript = detectScript(cleanMessage);
+    const userLangCode = scriptToLangCode(userScript, cleanMessage);
+    console.log(`👤 User lang: script=${userScript} → ${userLangCode}`);
+
+    // 4. Generate AI reply
     let rawReply = await generateReply(message, historyForLLM);
 
-    // 4. Clean the reply
+    // 5. Clean the reply
     let aiReply = rawReply.replace(/<think>[\s\S]*?<\/think>/gi, '');
     aiReply = aiReply.replace(/<think>[\s\S]*/gi, '');
     aiReply = aiReply.trim();
 
-    // Fallback if cleaning left empty string
     if (!aiReply) {
-      aiReply = "I'm here to help with Xyzon Innovations questions. What would you like to know?";
+      aiReply = "I specialize in Xyzon Innovations' tech-education programs. Let me know if you need details about our courses, internships, or placements!";
     }
 
-    // 5. Detect languages
-    const userLangCode = await detectLanguage(message);
-    const botLangCode  = await detectLanguage(aiReply);
+    // 6. Detect BOT reply language using script detection (not Sarvam API)
+    //    This fixes the badge always showing English
+    const botScript = detectScript(aiReply);
+    const botLangCode = scriptToLangCode(botScript, aiReply);
+    console.log(`🤖 Bot lang: script=${botScript} → ${botLangCode}`);
 
-    // 6. Generate TTS audio — fully isolated, never crashes the response
+    // 7. TTS — use bot's actual language, fully isolated
     let audioBase64 = null;
     if (includeAudio && aiReply) {
       try {
-        // If bot replied in English, use Hindi voice (Sarvam works better)
-        const ttsLang = (botLangCode === 'en-IN' || botLangCode === 'en-US')
-          ? 'hi-IN'
-          : botLangCode;
-
-        console.log(`🔊 TTS: lang=${ttsLang}, text length=${aiReply.length}`);
-        audioBase64 = await textToSpeech(aiReply, ttsLang);
-
+        console.log(`🔊 TTS: lang=${botLangCode}, text length=${aiReply.length}`);
+        audioBase64 = await textToSpeech(aiReply, botLangCode);
         if (audioBase64) {
           console.log('✅ TTS audio generated successfully');
         } else {
-          console.warn('⚠️ TTS returned null — sending text-only response');
+          console.warn('⚠️ TTS returned null — text-only response');
         }
       } catch (voiceErr) {
-        // TTS failure is non-fatal — user still gets text reply
-        const errCode = voiceErr.code || voiceErr.message || 'unknown';
+        const errCode = voiceErr.code || voiceErr.message || '';
         if (errCode.includes('ABORTED') || errCode.includes('ECONNRESET') || errCode.includes('stream')) {
-          console.warn('⚠️ TTS stream aborted (Sarvam rate limit or timeout) — skipping audio');
+          console.warn('⚠️ TTS stream aborted — skipping audio');
         } else {
           console.error('❌ TTS Generation Failed:', voiceErr.message);
         }
@@ -73,26 +74,18 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 7. Save exchange to MongoDB
+    // 8. Save to MongoDB
     conv.messages.push(
-      {
-        role: 'user',
-        text: message,
-        detectedLang: userLangCode
-      },
-      {
-        role: 'bot',
-        text: aiReply,
-        detectedLang: botLangCode
-      }
+      { role: 'user',  text: cleanMessage, detectedLang: userLangCode },
+      { role: 'bot',   text: aiReply,      detectedLang: botLangCode  }
     );
     await conv.save();
 
-    // 8. Send response — always succeeds even if audio is null
+    // 9. Send response
     return res.json({
       text: aiReply,
       detectedLang: botLangCode,
-      audio: audioBase64   // null = text-only, frontend handles gracefully
+      audio: audioBase64
     });
 
   } catch (err) {

@@ -1,5 +1,7 @@
+// Maps Sarvam language codes → display name + flag
 const LANG_NAMES = {
   'en-IN': '🇬🇧 English',
+  'en-US': '🇬🇧 English',
   'hi-IN': '🇮🇳 Hindi',
   'ta-IN': '🇮🇳 Tamil',
   'te-IN': '🇮🇳 Telugu',
@@ -19,7 +21,9 @@ const LANG_NAMES = {
 
 export default function LanguageBadge({ langCode }) {
   if (!langCode) return null;
+
   const label = LANG_NAMES[langCode] || langCode;
+
   return (
     <div className="lang-badge">
       {label}

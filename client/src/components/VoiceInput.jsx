@@ -1,16 +1,16 @@
 import { useVoice } from '../hooks/useVoice';
+import styles from '../styles/ChatWindow.module.css';
 
 export default function VoiceInput({ onTranscript }) {
   const { isRecording, isTranscribing, startRecording, stopRecording } = useVoice();
 
   const handleClick = async (e) => {
-    e.preventDefault(); // Prevents accidental form submissions
-    
+    e.preventDefault();
+
     if (isRecording) {
       const result = await stopRecording();
-      // Ensure we only pass the transcript if it's not empty
       if (result?.transcript && result.transcript.trim().length > 0) {
-        onTranscript(result.transcript, result.languageCode); 
+        onTranscript(result.transcript, result.languageCode);
       }
     } else {
       try {
@@ -21,26 +21,32 @@ export default function VoiceInput({ onTranscript }) {
     }
   };
 
+  // Pick label based on state
+  const label = isTranscribing
+    ? '⏳'
+    : isRecording
+    ? '⏹'
+    : '🎙';
+
   return (
-    <div className="voice-input-container">
+    <div className={styles.voiceWrap}>
       <button
         onClick={handleClick}
-        className={`voice-btn ${isRecording ? 'recording' : ''} ${isTranscribing ? 'processing' : ''}`}
+        className={`${styles.voiceBtn} ${isRecording ? styles.voiceRecording : ''} ${isTranscribing ? styles.voiceProcessing : ''}`}
         disabled={isTranscribing}
         type="button"
+        aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+        title={isRecording ? 'Stop' : isTranscribing ? 'Processing...' : 'Speak'}
       >
-        {isTranscribing ? (
-          <span className="loader">⏳ processing...</span>
-        ) : isRecording ? (
-          <span>⏹ Stop</span>
-        ) : (
-          <span>🎙 Speak</span>
-        )}
+        <span className={styles.voiceIcon}>{label}</span>
+        <span className={styles.voiceLabel}>
+          {isTranscribing ? 'Processing' : isRecording ? 'Stop' : 'Speak'}
+        </span>
       </button>
-      
-      {/* Optional: Add a small "Recording..." text for better UX */}
-      {isRecording && <p className="status-text">Listening...</p>}
+
+      {isRecording && (
+        <span className={styles.listeningDot} aria-live="polite" />
+      )}
     </div>
   );
 }
-

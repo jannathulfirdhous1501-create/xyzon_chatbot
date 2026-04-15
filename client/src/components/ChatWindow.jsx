@@ -17,7 +17,6 @@ function getSession() {
   return id;
 }
 
-// Quick-start chips for Xyzon topics
 const QUICK_CHIPS = [
   '📚 Training Programs',
   '💼 Placement Support',
@@ -35,7 +34,6 @@ export default function ChatWindow() {
   const textareaRef = useRef(null);
   const { messages, isLoading, chat } = useChat(sessionId);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     const timer = setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -43,7 +41,6 @@ export default function ChatWindow() {
     return () => clearTimeout(timer);
   }, [messages, isLoading]);
 
-  // Auto-resize textarea
   const handleInput = (e) => {
     setInput(e.target.value);
     const el = e.target;
@@ -77,10 +74,11 @@ export default function ChatWindow() {
 
       {/* ── Header ── */}
       <header className={styles.header}>
-        <div className={styles.logoMark}>X</div>
+        <div className={styles.logoMark}>XI</div>
         <div className={styles.headerText}>
           <h1 className={styles.title}>Xyzon Innovations</h1>
-          <p className={styles.subtitle}>Company Assistant · Replies only to Xyzon queries</p>
+          {/* CHANGED: subtitle updated to "Digital Assistant" */}
+          <p className={styles.subtitle}>Digital Assistant</p>
         </div>
         <div className={styles.statusPill}>
           <span className={styles.statusDot} />
@@ -90,8 +88,6 @@ export default function ChatWindow() {
 
       {/* ── Messages ── */}
       <div className={styles.messages}>
-
-        {/* Welcome / empty state */}
         {showWelcome && messages.length === 0 && !isLoading && (
           <div className={styles.empty}>
             <div className={styles.emptyIcon}>🏢</div>

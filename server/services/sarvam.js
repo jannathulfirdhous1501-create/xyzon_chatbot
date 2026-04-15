@@ -10,24 +10,30 @@ const headers = {
 };
 
 // ─────────────────────────────────────────────────────────
-// XYZON SERVER-SIDE SYSTEM PROMPT
+// XYZON SYSTEM PROMPT
 // ─────────────────────────────────────────────────────────
 const XYZON_SYSTEM_PROMPT = `You are the official AI assistant for Xyzon Innovations Private Limited, a tech-education company in Chennai, Tamil Nadu, India.
 
 ABSOLUTE RULES:
-1. COMPANY-ONLY: Only answer questions about Xyzon Innovations. If the user asks anything unrelated (general knowledge, coding tutorials, news, other companies, math, jokes, personal advice), REFUSE politely and redirect to Xyzon topics.
-2. SCRIPT MATCHING (MOST IMPORTANT RULE):
-   - If the user writes in Devanagari script (Hindi, Marathi) → Reply ONLY in Devanagari script. Example: "यह कंपनी कहाँ है?" → reply fully in Hindi Devanagari like "Xyzon Innovations चेन्नई, तमिलनाडु में स्थित है।"
-   - If the user writes in Tamil script → Reply ONLY in Tamil script.
-   - If the user writes in Malayalam script → Reply ONLY in Malayalam script.
-   - If the user writes in Telugu script → Reply ONLY in Telugu script.
-   - If the user writes in Kannada script → Reply ONLY in Kannada script.
-   - If the user writes in Bengali script → Reply ONLY in Bengali script.
-   - If the user writes ONLY in English → Reply in English.
-   - If the user mixes Hindi+English (Hinglish like "company kahan hai") → Reply in Hinglish using Roman letters.
-   - NEVER mix scripts. NEVER transliterate a native script question into Roman letters.
-3. VOICE-OPTIMIZED: Keep every response between 2 to 4 sentences. No long lists.
-4. CLEAN OUTPUT: No Markdown (no **, no #). Plain text only for TTS.
+1. COMPANY-ONLY (STRICTEST RULE): Only answer questions directly about Xyzon Innovations.
+   EXCEPTION: If the user sends a greeting (hi, hello, namaste, vanakkam, hey, good morning, etc. in any language), respond warmly and friendly in their language, introduce yourself as Xyzon's digital assistant, and invite them to ask about our courses, internships, or placements.
+   For ALL other unrelated topics (fruit prices, music, math, news, other companies, personal advice, etc.), reply with EXACTLY this and NOTHING else:
+   "I specialize in Xyzon Innovations' tech-education programs. Let me know if you need details about our courses, internships, or placements!"
+
+2. SCRIPT MATCHING (CRITICAL): Reply in the EXACT same script the user used.
+   - Devanagari (Hindi/Marathi script like यह, क्या) → Reply ONLY in Devanagari script
+   - Tamil script (like எனக்கு, என்ன) → Reply ONLY in Tamil script
+   - Malayalam script (like ഈ, എന്ത്) → Reply ONLY in Malayalam script
+   - Telugu script → Reply ONLY in Telugu script
+   - Kannada script → Reply ONLY in Kannada script
+   - Bengali script → Reply ONLY in Bengali script
+   - Roman English → Reply in English
+   - Hinglish Roman (kahan hai, kya hai) → Reply in Hinglish Roman letters
+   - Tanglish Roman (enna, sollu) → Reply in Tanglish Roman letters
+   NEVER transliterate. NEVER mix scripts.
+
+3. VOICE-OPTIMIZED: Keep responses to 3 sentences maximum. No long lists. No essays.
+4. CLEAN OUTPUT: No Markdown symbols (no **, no #, no bullet points). Plain text only.
 5. NEVER say "I understand. How else can I help you?" — always be specific.
 
 XYZON KNOWLEDGE BASE:
@@ -40,68 +46,109 @@ XYZON KNOWLEDGE BASE:
 - PROGRAMS: Web Development, Python, Java, Data Science, AI/ML, Embedded Systems/IoT, Cloud Computing, Cybersecurity, Salesforce/CRM, Mobile App Development, Full Stack
 - INTERNSHIP: BE/BTech/ME/MTech/BCA/BSc/MCA/MSc students. Duration 1 day to 8 weeks. College ID sufficient. Daily new batches. Certificate provided. Live projects included.
 - PLACEMENT: 100% placement assistance. Aptitude, soft skills, mock interviews, resume building. MNCs and IT firms targeted.
-- EVENT PLATFORM: SaaS product with payment integration, certificates, notifications, analytics.
+- EVENT PLATFORM: SaaS with payment integration, certificates, notifications, analytics.
 - ENROLLMENT: Visit https://xyzon.in or walk-in. New batches start regularly.`;
 
 // ─────────────────────────────────────────────────────────
-// Script detection helper
+// Script detection — returns script name from Unicode ranges
 // ─────────────────────────────────────────────────────────
 const detectScript = (text) => {
-  if (/[\u0900-\u097F]/.test(text)) return 'devanagari'; // Hindi, Marathi
+  if (/[\u0900-\u097F]/.test(text)) return 'devanagari';
   if (/[\u0B80-\u0BFF]/.test(text)) return 'tamil';
   if (/[\u0D00-\u0D7F]/.test(text)) return 'malayalam';
   if (/[\u0C00-\u0C7F]/.test(text)) return 'telugu';
   if (/[\u0C80-\u0CFF]/.test(text)) return 'kannada';
   if (/[\u0980-\u09FF]/.test(text)) return 'bengali';
-  if (/[\u0A00-\u0A7F]/.test(text)) return 'gurmukhi'; // Punjabi
   if (/[\u0A80-\u0AFF]/.test(text)) return 'gujarati';
+  if (/[\u0A00-\u0A7F]/.test(text)) return 'gurmukhi';
   if (/[\u0B00-\u0B7F]/.test(text)) return 'odia';
   if (/^[A-Za-z0-9\s!@#$%^&*(),.?":{}|<>'`~\-_+=;/\\[\]]+$/.test(text)) return 'roman';
   return 'unknown';
 };
 
-const getScriptRule = (script, cleanText) => {
+// Maps script name → Sarvam language code for TTS & badge
+const scriptToLangCode = (script, text) => {
+  switch (script) {
+    case 'devanagari': return 'hi-IN';
+    case 'tamil':      return 'ta-IN';
+    case 'malayalam':  return 'ml-IN';
+    case 'telugu':     return 'te-IN';
+    case 'kannada':    return 'kn-IN';
+    case 'bengali':    return 'bn-IN';
+    case 'gujarati':   return 'gu-IN';
+    case 'gurmukhi':   return 'pa-IN';
+    case 'odia':       return 'or-IN';
+    case 'roman': {
+      const hindiRoman = /\b(kahan|kya|hai|mein|ka|ki|ke|aap|hum|yeh|woh|bhi|aur|nahi|haan|batao|bolo)\b/i;
+      const tamilRoman = /\b(enna|epdi|evlo|yaar|naan|nee|avan|aval|inge|sollu|paaru|illai|theriyum)\b/i;
+      if (hindiRoman.test(text)) return 'hi-IN';
+      if (tamilRoman.test(text)) return 'ta-IN';
+      return 'en-IN';
+    }
+    default: return 'en-IN';
+  }
+};
+
+const getScriptRule = (script, text) => {
   switch (script) {
     case 'devanagari':
-      return `CRITICAL: The user wrote in Devanagari (Hindi/Marathi) script. You MUST reply ENTIRELY in Devanagari script. Every single word must be in Hindi/Devanagari. Do NOT use Roman letters or English words at all. Example of correct reply: "Xyzon Innovations चेन्नई, तमिलनाडु में स्थित है। अधिक जानकारी के लिए xyzon.in पर जाएं।"`;
+      return `CRITICAL: User wrote in Devanagari script. Reply ENTIRELY in Devanagari/Hindi script. Every word must be in Hindi. No Roman letters. Example: "Xyzon Innovations चेन्नई, तमिलनाडु में स्थित है।"`;
     case 'tamil':
-      return `CRITICAL: The user wrote in Tamil script. You MUST reply ENTIRELY in Tamil script. No English or Roman letters.`;
+      return `CRITICAL: User wrote in Tamil script. Reply ENTIRELY in Tamil script. No English or Roman letters.`;
     case 'malayalam':
-      return `CRITICAL: The user wrote in Malayalam script. You MUST reply ENTIRELY in Malayalam script. No English or Roman letters.`;
+      return `CRITICAL: User wrote in Malayalam script. Reply ENTIRELY in Malayalam script. No English or Roman letters.`;
     case 'telugu':
-      return `CRITICAL: The user wrote in Telugu script. You MUST reply ENTIRELY in Telugu script. No English or Roman letters.`;
+      return `CRITICAL: User wrote in Telugu script. Reply ENTIRELY in Telugu script. No English or Roman letters.`;
     case 'kannada':
-      return `CRITICAL: The user wrote in Kannada script. You MUST reply ENTIRELY in Kannada script. No English or Roman letters.`;
+      return `CRITICAL: User wrote in Kannada script. Reply ENTIRELY in Kannada script. No English or Roman letters.`;
     case 'bengali':
-      return `CRITICAL: The user wrote in Bengali script. You MUST reply ENTIRELY in Bengali script. No English or Roman letters.`;
-    case 'roman':
-      // Check if it looks like Hinglish or Tanglish
-      const hindiRomanWords = /\b(kahan|kya|hai|mein|ka|ki|ke|aap|hum|yeh|woh|bhi|aur|nahi|haan|theek|batao|bolo|dekho|suno|chalte|karo)\b/i;
-      const tamilRomanWords = /\b(enna|epdi|evlo|yaar|naan|nee|avan|aval|inge|ange|vendaam|theriyum|illai|sollu|paaru|vaa|po)\b/i;
-      if (hindiRomanWords.test(cleanText)) {
-        return `The user is writing Hinglish (Hindi in Roman letters). Reply in Hinglish using Roman letters with Hindi and English words mixed. Example: "Xyzon Innovations Chennai mein hai, Tamil Nadu mein. Aap zyada info ke liye xyzon.in visit kar sakte hain!"`;
-      }
-      if (tamilRomanWords.test(cleanText)) {
-        return `The user is writing Tanglish (Tamil in Roman letters). Reply in Tanglish using Roman letters with Tamil and English words. No Hindi words.`;
-      }
-      return `The user is writing in English. Reply in clear, simple English.`;
+      return `CRITICAL: User wrote in Bengali script. Reply ENTIRELY in Bengali script. No English or Roman letters.`;
+    case 'roman': {
+      const hindiRoman = /\b(kahan|kya|hai|mein|ka|ki|ke|aap|hum|yeh|woh|bhi|aur|nahi|haan|batao|bolo)\b/i;
+      const tamilRoman = /\b(enna|epdi|evlo|yaar|naan|nee|avan|aval|inge|sollu|paaru|illai|theriyum)\b/i;
+      if (hindiRoman.test(text)) return `User is writing Hinglish (Hindi in Roman letters). Reply in Hinglish Roman letters. Mix Hindi and English words using only Roman script.`;
+      if (tamilRoman.test(text)) return `User is writing Tanglish (Tamil in Roman letters). Reply in Tanglish Roman letters. Mix Tamil and English words using only Roman script.`;
+      return `User is writing in English. Reply in clear, simple English.`;
+    }
     default:
-      return `Match the user's language exactly in your reply.`;
+      return `Match the user's language exactly.`;
   }
 };
 
 // ─────────────────────────────────────────────────────────
-// 1. Detect Language
+// Smart TTS truncation — cuts at sentence boundary
+// ─────────────────────────────────────────────────────────
+const smartTruncate = (text, maxChars = 800) => {
+  if (text.length <= maxChars) return text;
+
+  // Try to cut at last sentence-ending punctuation before maxChars
+  const chunk = text.substring(0, maxChars);
+  const lastPunct = Math.max(
+    chunk.lastIndexOf('।'), // Devanagari danda
+    chunk.lastIndexOf('.'),
+    chunk.lastIndexOf('?'),
+    chunk.lastIndexOf('!'),
+    chunk.lastIndexOf('。') // Chinese/Japanese
+  );
+
+  if (lastPunct > maxChars * 0.5) {
+    return chunk.substring(0, lastPunct + 1).trim();
+  }
+
+  // Fallback: cut at last space
+  const lastSpace = chunk.lastIndexOf(' ');
+  return lastSpace > 0 ? chunk.substring(0, lastSpace).trim() : chunk.trim();
+};
+
+// ─────────────────────────────────────────────────────────
+// 1. Detect Language (used for badge — now uses script detection)
 // ─────────────────────────────────────────────────────────
 const detectLanguage = async (text) => {
-  try {
-    const res = await axios.post(`${BASE}/text-to-text/language-identification/v1`, {
-      input: text
-    }, { headers, timeout: 5000 });
-    return res.data.language_code || 'en-IN';
-  } catch {
-    return 'en-IN';
-  }
+  // Use Unicode script detection — more reliable than Sarvam API for badges
+  const script = detectScript(text);
+  const langCode = scriptToLangCode(script, text);
+  console.log(`🏷️  Badge lang: script=${script} → ${langCode}`);
+  return langCode;
 };
 
 // ─────────────────────────────────────────────────────────
@@ -109,10 +156,9 @@ const detectLanguage = async (text) => {
 // ─────────────────────────────────────────────────────────
 const generateReply = async (userText, history = []) => {
   try {
-    // Strip the [SYSTEM:...] prefix injected by client if present
+    // Strip [SYSTEM:...] prefix injected by client
     const cleanUserText = userText.replace(/^\[SYSTEM:[\s\S]*?\]\s*/i, '').trim();
 
-    // Detect which script the user actually used
     const script = detectScript(cleanUserText);
     const scriptRule = getScriptRule(script, cleanUserText);
 
@@ -175,16 +221,22 @@ const speechToText = async (audioBuffer) => {
 };
 
 // ─────────────────────────────────────────────────────────
-// 4. Text to Speech
+// 4. Text to Speech — smart truncation so full reply is read
 // ─────────────────────────────────────────────────────────
 const textToSpeech = async (text, langCode = 'hi-IN') => {
   try {
     if (!text || text.trim().length === 0) return null;
 
-    const ttsLang = langCode.startsWith('en') ? 'hi-IN' : langCode;
+    // Always use the detected language — don't force hi-IN for English
+    // Sarvam handles English well with en-IN speaker
+    const ttsLang = langCode || 'hi-IN';
+
+    // Smart truncate at sentence boundary instead of hard 500 char cut
+    const ttsText = smartTruncate(text, 800);
+    console.log(`🔊 TTS: lang=${ttsLang}, original=${text.length} chars, sending=${ttsText.length} chars`);
 
     const res = await axios.post(`${BASE}/text-to-speech`, {
-      text: text.substring(0, 500),
+      text: ttsText,
       target_language_code: ttsLang,
       speaker: 'anushka',
       model: 'bulbul:v2',
@@ -198,9 +250,11 @@ const textToSpeech = async (text, langCode = 'hi-IN') => {
 
     const audio = res.data?.audios?.[0];
     if (!audio) {
-      console.warn('⚠️ TTS: No audio in response');
+      console.warn('⚠️ TTS: No audio in response', res.data);
       return null;
     }
+
+    console.log('✅ TTS audio generated successfully');
     return audio;
 
   } catch (error) {
@@ -218,5 +272,7 @@ module.exports = {
   detectLanguage,
   generateReply,
   speechToText,
-  textToSpeech
+  textToSpeech,
+  detectScript,
+  scriptToLangCode
 };

@@ -38,7 +38,6 @@
   overflow: hidden;
 }
 
-/* Diagonal accent stripe */
 .header::before {
   content: '';
   position: absolute;
@@ -48,28 +47,27 @@
   pointer-events: none;
 }
 
-/* Top orange line */
 .header::after {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--orange-600), var(--orange-400), var(--orange-200), transparent);
+  background: linear-gradient(90deg, #c44e00, #f26522, #ff9a61, transparent);
 }
 
 .logoMark {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--orange-500), var(--orange-300));
+  background: linear-gradient(135deg, #e05a00, #ff7a35);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 20px;
-  color: white;
-  letter-spacing: -1px;
+  font-size: 25px;        /* reduced from 20px so XI fits */
+  color: #0b1628;         /* navy blue text inside orange box */
+  letter-spacing: -0.5px;
   flex-shrink: 0;
   box-shadow: 0 4px 16px rgba(242,101,34,0.4);
   position: relative;
@@ -134,7 +132,7 @@
   flex-direction: column;
   gap: 14px;
   scrollbar-width: thin;
-  scrollbar-color: var(--navy-500) transparent;
+  scrollbar-color: rgba(26,52,104,0.8) transparent;
 }
 
 .empty {
@@ -199,8 +197,8 @@
   font-family: var(--font-body);
 }
 .chip:hover {
-  border-color: var(--orange-400);
-  color: var(--orange-300);
+  border-color: #f26522;
+  color: #ff7a35;
   background: rgba(242,101,34,0.1);
   transform: translateY(-1px);
 }
@@ -225,7 +223,6 @@
   border-radius: 14px;
   padding: 10px 14px;
   transition: border-color 0.2s, box-shadow 0.2s;
-  gap: 8px;
 }
 .inputWrap:focus-within {
   border-color: rgba(242,101,34,0.45);
@@ -248,14 +245,14 @@
 }
 .textarea::placeholder { color: var(--text-dim); }
 
+/* ── Send Button ── */
 .sendBtn {
-  background: linear-gradient(135deg, var(--orange-500), var(--orange-300));
+  background: linear-gradient(135deg, #e05a00, #ff7a35);
   border: none;
   border-radius: 11px;
   color: white;
   width: 42px;
   height: 42px;
-  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -276,13 +273,88 @@
   box-shadow: none;
 }
 
-.inputHint {
-  text-align: center;
-  font-size: 10.5px;
-  color: var(--text-dim);
-  margin-top: 8px;
-  letter-spacing: 0.3px;
+/* ── Voice Button — matches send button style ── */
+.voiceWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  position: relative;
 }
+
+.voiceBtn {
+  /* Same orange gradient as send button but rectangular with rounded corners */
+  background: linear-gradient(135deg, #e05a00, #ff7a35);
+  border: none;
+  border-radius: 11px;          /* same radius as send button */
+  color: white;
+  height: 42px;
+  padding: 0 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(242,101,34,0.35);
+  white-space: nowrap;
+}
+.voiceBtn:hover:not(:disabled) {
+  transform: scale(1.04) translateY(-1px);
+  box-shadow: 0 6px 20px rgba(242,101,34,0.5);
+}
+.voiceBtn:active:not(:disabled) { transform: scale(0.95); }
+.voiceBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  box-shadow: none;
+}
+
+/* Recording state — pulse red tint */
+.voiceRecording {
+  background: linear-gradient(135deg, #b91c1c, #ef4444) !important;
+  box-shadow: 0 4px 14px rgba(239,68,68,0.4) !important;
+  animation: recordPulse 1.5s ease-in-out infinite;
+}
+@keyframes recordPulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(239,68,68,0.4); }
+  50%       { box-shadow: 0 4px 22px rgba(239,68,68,0.7); }
+}
+
+/* Processing state */
+.voiceProcessing {
+  background: linear-gradient(135deg, #1a3468, #2a52a0) !important;
+  box-shadow: 0 4px 14px rgba(42,82,160,0.4) !important;
+}
+
+.voiceIcon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.voiceLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 0.3px;
+  font-family: var(--font-body);
+}
+
+/* Listening red dot */
+.listeningDot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+  animation: blink 1s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -296,4 +368,6 @@
   .inputArea { padding: 12px 12px 16px; }
   .title { font-size: 16px; }
   .statusPill { display: none; }
+  .voiceLabel { display: none; } /* icon only on mobile */
+  .voiceBtn { padding: 0 12px; }
 }
